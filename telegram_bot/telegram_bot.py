@@ -17,6 +17,29 @@ def create_soup_pc(url):
     soup = BeautifulSoup(res.text, "lxml")
     return soup
 max_num = 0
+global num
+num =30
+# 학위논문 제목검색
+def find_riss_uni(key, num):
+    url = "http://www.riss.kr/search/Search.do?isDetailSearch=N&searchGubun=true&viewYn=OP&query={keyword}&queryText=&iStartCount=0&iGroupView=5&icate=all&colName=bib_t&exQuery=&exQueryText=&order=%2FDESC&onHanja=false&strSort=RANK&pageScale={number}".format(keyword = key, number=num)
+    soup = create_soup_pc(url)
+    riss_list = soup.find("div", attrs = {"class":"srchResultListW"}).select("div.srchResultListW > ul > li")
+    title = "학위논문" + key + "검색 결과 \n"
+    for riss in riss_list:
+        riss_title = riss.select_one("div.cont > p.title > a").get_text()
+        title = title + riss_title + "\n"
+    return title
+
+# 학술논문 제목검색
+def find_riss_ko(key, num):
+    url = "http://www.riss.kr/search/Search.do?isDetailSearch=N&searchGubun=true&viewYn=OP&query={keyword}&queryText=&iStartCount=0&iGroupView=5&icate=all&colName=re_a_kor&exQuery=&exQueryText=&order=%2FDESC&onHanja=false&strSort=RANK&pageScale={number}".format(keyword = key, number=num)
+    soup = create_soup_pc(url)
+    riss_list = soup.find("div", attrs = {"class":"srchResultListW"}).select("div.srchResultListW > ul > li")
+    title = "학위논문" + key + "검색 결과 \n"
+    for riss in riss_list:
+        riss_title = riss.select_one("div.cont > p.title > a").get_text()
+        title = title + riss_title + "\n"
+    return title
 
 # 뽐뿌 알리미
 def ppom():
@@ -277,7 +300,7 @@ def handle(msg):
             msg = "특정 종목 뉴스 보여주기 : 종목명 \n 관심종목 추가하기 : 종목추가종목명\n 관심종목 삭제하기 : 종목삭제종목명\
                 \n 관심종목 목록보기 : 관심종목 \n 관심종목 뉴스보기 : 전체뉴스 \n 토렌트 검색 방법 : 토렌트 파일명 \n \
                 토렌트 검색 페이지 변경 : 페이지 숫자 \n 페이지확인 : 현재페이지 \n \
-                토렌트 검색 개수 변경 : 검색개수 숫자 \n 페이지확인 : 현재검색개수 \n 영화순위 \n" 
+                토렌트 검색 개수 변경 : 검색개수 숫자 \n 페이지확인 : 현재검색개수 \n 영화순위 \n 학위논문-검색키워드- \n 논문검색개수20" 
 
             bot.sendMessage(chat_id, msg)
         # 종목명을 입력하면 종목 뉴스 보여주기
@@ -343,10 +366,24 @@ def handle(msg):
         # 토렌트 최대 검색 개수 확인하기
         elif msg['text'] == "현재검색개수":
             bot.sendMessage(chat_id, max_find) 
-         # 영홧순위
+        # 영화순위
         elif msg['text'] == "영화순위":
             movie_rank = movie_rank_month()
             bot.sendMessage(chat_id, movie_rank)            
+        # 학위논문 검색
+        elif msg['text'][0:4] == "학위논문":
+            global num
+            title = find_riss_uni(msg['text'][4:], num)
+            bot.sendMessage(chat_id, title)
+        # 학술논문 검색
+        elif msg['text'][0:4] == "학술논문":
+            title = find_riss_ko(msg['text'][4:], num)
+            bot.sendMessage(chat_id, title)
+
+        # 논문 최대 검색 개수 변경하기
+        elif msg['text'][0:6] == "논문검색개수":
+            num= int(msg['text'][6:].strip())
+            bot.sendMessage(chat_id, "논문 최대 검색개수를 변경하였습니다.")            
         else:
             bot.sendMessage(chat_id, '지원하지 않는 기능입니다')
 
