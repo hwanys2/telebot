@@ -139,14 +139,14 @@ def find_torrent(keyword):
     return magnets
 
 # 관심종목 리스트 만들고 열기
-with open("/home/pi/coding/vscode/telegram_bot/inter_company.txt", "r") as f:
+with open("/home/pi/coding/git_rasp/telegram_bot/inter_company.txt", "r") as f:
     com_list=[]
     lines = f.readlines()
     for com in lines:
         com_list.append(com.strip())
 
 # 영화 다운로드 리스트 만들고 열기
-with open("/home/pi/coding/vscode/telegram_bot/movietop10.txt", "r") as f:
+with open("/home/pi/coding/git_rasp/telegram_bot/movietop10.txt", "r") as f:
     movie_list=[]
     lines = f.readlines()
     for movie in lines:
@@ -154,7 +154,7 @@ with open("/home/pi/coding/vscode/telegram_bot/movietop10.txt", "r") as f:
 
 # 영화리스트 업데이트
 def update_movie_list():
-    with open("/home/pi/coding/vscode/telegram_bot/movietop10.txt", "w") as f:
+    with open("/home/pi/coding/git_rasp/telegram_bot/movietop10.txt", "w") as f:
         for movie in movie_list:
             data = movie + "\n"
             f.write(data)
@@ -220,7 +220,7 @@ day = today[8:10]
 
 # 종목 및 코드 dcit 만들기 csv파일에서 읽어와서 만들기
 stock_dict = {}
-f = open("/home/pi/coding/vscode/telegram_bot/data.csv", "r")
+f = open("/home/pi/coding/git_rasp/telegram_bot/data.csv", "r")
 reader = csv.DictReader(f)
 for row in reader:
     stock_dict[row['기업명']] = row['종목코드']
@@ -281,7 +281,7 @@ def sendtelegram():
 
 # 관심종목 업데이트
 def update_inter():
-    with open("/home/pi/coding/vscode/telegram_bot/inter_company.txt", "w") as f:
+    with open("/home/pi/coding/git_rasp/telegram_bot/inter_company.txt", "w") as f:
         for com in com_list:
             data = com + "\n"
             f.write(data)
