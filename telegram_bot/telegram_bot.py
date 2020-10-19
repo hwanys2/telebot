@@ -16,7 +16,6 @@ def create_soup_pc(url):
     res.raise_for_status()
     soup = BeautifulSoup(res.text, "lxml")
     return soup
-max_num = 0
 global num
 num =30
 # 학위논문 제목검색
@@ -42,6 +41,13 @@ def find_riss_ko(key, num):
     return title
 
 # 뽐뿌 알리미
+# 뽐뿌 최신 게시글 번호 불러오기
+with open("/home/pi/coding/git_rasp/telegram_bot/ppom_max_num.txt", "r") as f:
+    max_num = f.readlines()
+# 뽐뿌 최신 게시글 번호 불러오기
+def update_ppom_max_num():
+    with open("/home/pi/coding/git_rasp/telegram_bot/ppom_max_num.txt", "w") as f:
+        f.write(max_num)
 def ppom():
     global max_num
     url = "http://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu"
@@ -61,6 +67,7 @@ def ppom():
                     continue
                 title = title.get_text()
                 max_num = int(num)
+                update_ppom_max_num()
                 link_box = post.find("td", attrs = {"valign" : "middle"})
                 link = "http://www.ppomppu.co.kr/zboard/" + link_box.find("a")["href"]
                 message = title + "\n 링크 주소 : " + link 
@@ -69,6 +76,13 @@ def ppom():
 
 # 뽐뿌 해외게시판 알리미
 max_num_global = 0
+# 해외뽐뿌 최신 게시글 번호 불러오기
+with open("/home/pi/coding/git_rasp/telegram_bot/global_ppom_max_num.txt", "r") as f:
+    max_num = f.readlines()
+# 해외뽐뿌 최신 게시글 번호 불러오기
+def update_globalppom_max_num():
+    with open("/home/pi/coding/git_rasp/telegram_bot/global_ppom_max_num.txt", "w") as f:
+        f.write(max_num_global)
 def ppomglobal():    
     global max_num_global
     url = "http://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu4"
@@ -88,6 +102,7 @@ def ppomglobal():
                     continue
                 title = title.get_text()
                 max_num_global = int(num)
+                update_globalppom_max_num()
                 link_box = post.find("td", attrs = {"valign" : "middle"})
                 link = "http://www.ppomppu.co.kr/zboard/" + link_box.find("a")["href"]
                 message = title + "\n 링크 주소 : " + link
