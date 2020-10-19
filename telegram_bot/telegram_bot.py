@@ -43,11 +43,11 @@ def find_riss_ko(key, num):
 # 뽐뿌 알리미
 # 뽐뿌 최신 게시글 번호 불러오기
 with open("/home/pi/coding/git_rasp/telegram_bot/ppom_max_num.txt", "r") as f:
-    max_num = f.readlines()
+    max_num = int(f.readline().replace("'",""))
 # 뽐뿌 최신 게시글 번호 불러오기
 def update_ppom_max_num():
     with open("/home/pi/coding/git_rasp/telegram_bot/ppom_max_num.txt", "w") as f:
-        f.write(max_num)
+        f.write(str(max_num))
 def ppom():
     global max_num
     url = "http://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu"
@@ -75,14 +75,13 @@ def ppom():
                 bot.sendMessage(mc, message)
 
 # 뽐뿌 해외게시판 알리미
-max_num_global = 0
 # 해외뽐뿌 최신 게시글 번호 불러오기
 with open("/home/pi/coding/git_rasp/telegram_bot/global_ppom_max_num.txt", "r") as f:
-    max_num = f.readlines()
+    max_num_global = int(f.readline())
 # 해외뽐뿌 최신 게시글 번호 불러오기
 def update_globalppom_max_num():
     with open("/home/pi/coding/git_rasp/telegram_bot/global_ppom_max_num.txt", "w") as f:
-        f.write(max_num_global)
+        f.write(str(max_num_global))
 def ppomglobal():    
     global max_num_global
     url = "http://www.ppomppu.co.kr/zboard/zboard.php?id=ppomppu4"
@@ -436,7 +435,8 @@ def morning_alarm():
     today = str(datetime.today().month) + "월 " + str(datetime.today().day) + "일 " + t[r] +"요일 입니다."
     msg = today + "\n"*2 + "다슬이 생후 " + str(dasl_time) + "일 되는 날입니다. \n" + "결혼한지 " + str(wedding_time) + "일 되는 날입니다. \n \n" + weather
     bot.sendMessage(mc, msg)
-
+ppom()
+ppomglobal()
 # 반복 및 스케쥴 관리
 schedule.every(11).minutes.do(ppom)
 schedule.every(17).minutes.do(ppomglobal)
