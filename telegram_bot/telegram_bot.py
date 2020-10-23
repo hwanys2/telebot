@@ -1,24 +1,86 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[1]:
+
+
 from bs4 import BeautifulSoup
 import requests
 from datetime import datetime, timedelta
 import csv
 import webbrowser
 import telepot
+from telepot.loop import MessageLoop
+from telepot.namedtuple import InlineKeyboardMarkup as MU
+from telepot.namedtuple import InlineKeyboardButton as BT
 from selenium import webdriver
 import time
 import schedule
-from telepot.loop import MessageLoop
+from qbittorrent import Client
+from dateutil.relativedelta import *
 
+
+# # 1. 준비
+# ### header||
+
+# In[2]:
+
+
+# pc용 및 모바일용
 headers_pc = {"User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.89 Safari/537.36"}
+headers = {"User-Agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1"}
+options = webdriver.ChromeOptions()
+options.add_argument('headless')
+options.add_argument("disable-gpu")
+
+
+# ### creat soup
+
+# In[3]:
+
 
 def create_soup_pc(url):
     res = requests.get(url,headers = headers_pc)
     res.raise_for_status()
     soup = BeautifulSoup(res.text, "lxml")
     return soup
+def create_soup(url):
+    browser = webdriver.Chrome("/usr/bin/chromedriver", chrome_options=options)
+    browser.get(url)
+    time.sleep(1)
+    req = browser.page_source
+    soup = BeautifulSoup(req, "lxml")
+    return soup
+
+
+# ### 텔레봇 관련
+
+# In[4]:
+
+
+token = "1391325068:AAEC4BDnp-iNMdc5S8kva-M8o2oQSizVhdQ"  #봇의 정체성?
+mc = "1320457181"  # 이건 나!!
+bot = telepot.Bot(token) # 봇을 실행하는 명령
+
+
+# ### Qbittorrent 관련
+
+# In[5]:
+
+
+qb = Client("http://192.168.1.84:8080")
+qb.login("hwanys2", "dnfwlq1352!")
+# qb.download_from_link(magnet_link)
+
+
+# # 2. riss 논문 검색
+
+# In[6]:
+
+
+# 학위 논문 검색
 global num
 num =30
-# 학위논문 제목검색
 def find_riss_uni(key, num):
     url = "http://www.riss.kr/search/Search.do?isDetailSearch=N&searchGubun=true&viewYn=OP&query={keyword}&queryText=&iStartCount=0&iGroupView=5&icate=all&colName=bib_t&exQuery=&exQueryText=&order=%2FDESC&onHanja=false&strSort=RANK&pageScale={number}".format(keyword = key, number=num)
     soup = create_soup_pc(url)
@@ -28,7 +90,6 @@ def find_riss_uni(key, num):
         riss_title = riss.select_one("div.cont > p.title > a").get_text()
         title = title + riss_title + "\n"
     return title
-
 # 학술논문 제목검색
 def find_riss_ko(key, num):
     url = "http://www.riss.kr/search/Search.do?isDetailSearch=N&searchGubun=true&viewYn=OP&query={keyword}&queryText=&iStartCount=0&iGroupView=5&icate=all&colName=re_a_kor&exQuery=&exQueryText=&order=%2FDESC&onHanja=false&strSort=RANK&pageScale={number}".format(keyword = key, number=num)
@@ -40,7 +101,12 @@ def find_riss_ko(key, num):
         title = title + riss_title + "\n"
     return title
 
-# 뽐뿌 알리미
+
+# # 3. PPOM 게시판 알리미
+
+# In[7]:
+
+
 # 뽐뿌 최신 게시글 번호 불러오기
 with open("/home/pi/coding/git_rasp/telegram_bot/ppom_max_num.txt", "r") as f:
     max_num = int(f.readline().replace("'",""))
@@ -73,7 +139,6 @@ def ppom():
                 message = title + "\n 링크 주소 : " + link 
                 print(message)
                 bot.sendMessage(mc, message)
-
 # 뽐뿌 해외게시판 알리미
 # 해외뽐뿌 최신 게시글 번호 불러오기
 with open("/home/pi/coding/git_rasp/telegram_bot/global_ppom_max_num.txt", "r") as f:
@@ -108,56 +173,56 @@ def ppomglobal():
                 print(message)
                 bot.sendMessage(mc, message)
 
-# 토렌트 검색
-k=5
-max_find = 2
+
+# # 4. Torrent 검색
+
+# ### torrentz에서 검색하기
+
+# In[8]:
+
+
+max_find = 5
 def find_torrent(keyword):
     magnets = []
-    for p in range(1,k+1):
-        url = "https://bing.com/search?q={}+토렌트&first={}".format(keyword, p)
-        time.sleep(0.01)
-        res = requests.get(url, headers=headers_pc)
-        soup = BeautifulSoup(res.content, "lxml")
-        print(str(p) + "번째 페이지 검색중입니다.")
-        page = soup.find_all('li', attrs = {"class":"b_algo"})
-        # print(url)
-        if len(magnets)>max_find:
-            break
-        for d in page:
-            alink = d.find("a")["href"]
-            title = d.select("h2")[0].text
-            time.sleep(0.01)
-            if len(magnets) > max_find:
-                break
-            try :
-                r = requests.get(alink, headers=headers_pc, timeout=1)
-                bs = BeautifulSoup(r.content, "lxml")
-                all_links = bs.select("a")
-                for a in all_links:
-                    g_link = a.get("href")
-                    if len(magnets) > max_find:
-                        break
-                    if g_link is None:
-                        continue
-                    if g_link.find("magnet:?") >= 0:
-                        g_link = str(g_link)
-                        g_link = "magnet:?" + g_link.split("magnet:?")[1].split("&")[0]
-                        title = str(title) + "\n" + str(alink)
-                        magnets.append({
-                            "title": title,
-                            "magnet": g_link,
-                        })
-                        break
-            except:
-                print("접속하지 못했습니다.")
-    return magnets
+    for i in range(max_find):
+        magnets.append({"title" : "없어요.", "magnet":""})
+    url = "http://torrentz.com/search?f={}".format(keyword)
+    time.sleep(0.01)
+    res = requests.get(url, headers=headers_pc)
+    soup = BeautifulSoup(res.content, "lxml")
+    results = soup.find("div", attrs = {"class":"results"}).find_all("dl", limit = max_find)
+    results.reverse()
+    try :
+        for result in results:
+            title = result.find("a").get_text()
+            magnet = "magnet:?xt=urn:btih:" + result.find("a")["href"][1:]
+            magnets.insert(0,{
+                "title": title,
+                "magnet": magnet,
+            })
+        return magnets
+    except :
+        bot.sendMessage(mc, "토렌트 검색 중 오류가 발생했습니다.")
 
-# 관심종목 리스트 만들고 열기
-with open("/home/pi/coding/git_rasp/telegram_bot/inter_company.txt", "r") as f:
-    com_list=[]
-    lines = f.readlines()
-    for com in lines:
-        com_list.append(com.strip())
+
+# ### 텔레봇 버튼박스로 응답받기 - 버튼박스만드는 것은 텔레봇함수안에
+
+# In[9]:
+
+
+def query_ans(msg):
+   query_id = msg['id']      # 팝업을 띄울때만 
+   query_data = msg["data"]
+   for i in range(max_find):
+       if query_data == "download" + str(i):
+           qb.download_from_link(magnets[i]["magnet"])
+           bot.answerCallbackQuery(query_id, text = "다운로드 시작합니다")
+
+
+# ### 네이버 vod 순위 검색
+
+# In[10]:
+
 
 # 영화 다운로드 리스트 만들고 열기
 with open("/home/pi/coding/git_rasp/telegram_bot/movietop10.txt", "r") as f:
@@ -172,7 +237,7 @@ def update_movie_list():
         for movie in movie_list:
             data = movie + "\n"
             f.write(data)
-
+            
 # 영화 제목 평점 크롤링해오기
 def find_movie():
     url = "https://serieson.naver.com/movie/top100List.nhn?rankingTypeCode=PC_M"
@@ -188,13 +253,13 @@ def find_movie():
                 if magnets == []:
                     continue
                 for magnet in magnets:
-                    msg_title = "제목 " + str(magnet['title'])
+                    msg_title = str(magnet['title']) + "/n 을 다운로드에 추가하였습니다."
                     msg_magnet = str(magnet['magnet'])
+                    qb.download_from_link(msg_magnet)
                     bot.sendMessage(mc, msg_title)
-                    bot.sendMessage(mc, msg_magnet)
                 movie_list.append(title)
                 update_movie_list()
-
+# 영화 월간 순위 크롤링
 def movie_rank_month():
     url = "https://serieson.naver.com/movie/top100List.nhn?rankingTypeCode=PC_M"
     soup = create_soup_pc(url)
@@ -207,38 +272,46 @@ def movie_rank_month():
         movie_rank = movie_rank + str(i) +"위 :" + title + "\n"    
     return movie_rank
 
-# 모바일용 headers
-headers = {"User-Agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1"}
 
-options = webdriver.ChromeOptions()
-options.add_argument('headless')
-options.add_argument("disable-gpu")
+# # 5. 네이버 기업 뉴스 크롤링
 
-# 모바일용 soup
-def create_soup(url):
-    browser = webdriver.Chrome("/usr/bin/chromedriver", chrome_options=options)
-    browser.get(url)
-    time.sleep(4)
-    req = browser.page_source
-    soup = BeautifulSoup(req, "lxml")
-    return soup
+# ### 종목 리스트 관리
 
-token = "1391325068:AAEC4BDnp-iNMdc5S8kva-M8o2oQSizVhdQ"  #봇의 정체성?
-mc = "1320457181"  # 이건 나!!
-bot = telepot.Bot(token) # 봇을 실행하는 명령
+# In[11]:
 
-all_news = ""
-today = str(datetime.today())
-month = today[5:7]
-day = today[8:10]
 
+# 관심종목 불러오기
+with open("/home/pi/coding/git_rasp/telegram_bot/inter_company.txt", "r") as f:
+    com_list=[]
+    lines = f.readlines()
+    for com in lines:
+        com_list.append(com.strip())
+
+# 관심종목 업데이트
+def update_inter():
+    with open("/home/pi/coding/git_rasp/telegram_bot/inter_company.txt", "w") as f:
+        for com in com_list:
+            data = com + "\n"
+            f.write(data)
+            
 # 종목 및 코드 dcit 만들기 csv파일에서 읽어와서 만들기
 stock_dict = {}
 f = open("/home/pi/coding/git_rasp/telegram_bot/data.csv", "r")
 reader = csv.DictReader(f)
 for row in reader:
     stock_dict[row['기업명']] = row['종목코드']
+f.close()
 
+
+# ### 종목뉴스 가져오기
+
+# In[12]:
+
+
+all_news = ""
+today = str(datetime.today())
+month = today[5:7]
+day = today[8:10]
 # 종목명 넣고 뉴스 가져오기 함수
 def company_news(company):
     company_code = stock_dict[company]
@@ -264,8 +337,6 @@ def company_news(company):
             break
     print(company_title_link)
     return company_title_link
-f.close()
-
 # 뉴스 최대4개만 합치기
 def send_news(compane_name):
     global all_news
@@ -281,7 +352,7 @@ def send_news(compane_name):
 
                 if len(compane_name) > 3:    
                     all_news = all_news + "\n" + str(list(compane_name.keys())[3]) + "\n" + str(list(compane_name.values())[3])[2:-2]+ "\n"
-
+                    
 # 텔레그램으로 모아진 뉴스 보내기(관심종목에있는 모든 뉴스)
 def sendtelegram():
     global all_news
@@ -293,14 +364,12 @@ def sendtelegram():
         print(com, " 뉴스 검색 완료")
     bot.sendMessage(mc, all_news,disable_web_page_preview=True)
 
-# 관심종목 업데이트
-def update_inter():
-    with open("/home/pi/coding/git_rasp/telegram_bot/inter_company.txt", "w") as f:
-        for com in com_list:
-            data = com + "\n"
-            f.write(data)
 
-# 텔레그램 대화봇
+# # 6. 텔레그램 대화봇
+
+# In[13]:
+
+
 def handle(msg):
     content_type, chat_type, chat_id = telepot.glance(msg)
  
@@ -311,10 +380,7 @@ def handle(msg):
             bot.sendMessage(chat_id, 'Hello')
         # 도움말
         elif msg['text'].upper() == '도움말':
-            msg = "특정 종목 뉴스 보여주기 : 종목명 \n 관심종목 추가하기 : 종목추가종목명\n 관심종목 삭제하기 : 종목삭제종목명\
-                \n 관심종목 목록보기 : 관심종목 \n 관심종목 뉴스보기 : 전체뉴스 \n 토렌트 검색 방법 : 토렌트 파일명 \n \
-                토렌트 검색 페이지 변경 : 페이지 숫자 \n 페이지확인 : 현재페이지 \n \
-                토렌트 검색 개수 변경 : 검색개수 숫자 \n 페이지확인 : 현재검색개수 \n 영화순위 \n 학위논문-검색키워드- \n 논문검색개수20" 
+            msg = "특정 종목 뉴스 보여주기 : 종목명 \n 관심종목 추가하기 : 종목추가종목명\n 관심종목 삭제하기 : 종목삭제종목명                \n 관심종목 목록보기 : 관심종목 \n 관심종목 뉴스보기 : 전체뉴스 \n 토렌트 검색 방법 : 토렌트 파일명 \n                 토렌트 검색 페이지 변경 : 페이지 숫자 \n 페이지확인 : 현재페이지 \n                 토렌트 검색 개수 변경 : 검색개수 숫자 \n 페이지확인 : 현재검색개수 \n 영화순위 \n 학위논문-검색키워드- \n 논문검색개수20" 
 
             bot.sendMessage(chat_id, msg)
         # 종목명을 입력하면 종목 뉴스 보여주기
@@ -356,27 +422,21 @@ def handle(msg):
             sendtelegram()
         # 토렌트 검색해주기
         elif msg['text'].startswith("토렌트") is True:
+            global magnets
+            global max_find
             magnets = find_torrent(msg['text'][3:].strip())
-            if magnets == []:
-                bot.sendMessage(chat_id, "검색되지 않았습니다.")
-            for magnet in magnets:
-                msg_title = "제목 " + str(magnet['title'])
-                msg_magnet = str(magnet['magnet'])
-                bot.sendMessage(chat_id, msg_title)
-                bot.sendMessage(chat_id, msg_magnet)
-        # 토렌트 검색 페이지 변경하기 
-        elif msg['text'][0:3] == "페이지":
-            global k
-            k= int(msg['text'][3:].strip())
-            bot.sendMessage(chat_id, "토렌트 페이지 검색을 변경하였습니다.")
-        # 검색 페이지 확인하기
-        elif msg['text'] == "현재페이지":
-            bot.sendMessage(chat_id, k) 
+            arr = []
+            for i in range(max_find):
+                arr.append([BT(text=magnets[i]["title"], callback_data = "download" + str(i))])
+                mu = MU(inline_keyboard = arr)
+            bot.sendMessage(mc, "뭘 받을까?", reply_markup=mu)
         # 토렌트 최대 검색 개수 변경하기
         elif msg['text'][0:4] == "검색개수":
-            global max_find
-            max_find= int(msg['text'][4:].strip())
-            bot.sendMessage(chat_id, "토렌트 최대 검색개수 변경하였습니다.")
+            try:
+                max_find= int(msg['text'][4:].strip())
+                bot.sendMessage(chat_id, "토렌트 최대 검색개수 변경하였습니다.")
+            except:
+                bot.sendMessage(chat_id, "명령어를 다시 확인하세요")
         # 토렌트 최대 검색 개수 확인하기
         elif msg['text'] == "현재검색개수":
             bot.sendMessage(chat_id, max_find) 
@@ -396,12 +456,21 @@ def handle(msg):
 
         # 논문 최대 검색 개수 변경하기
         elif msg['text'][0:6] == "논문검색개수":
-            num= int(msg['text'][6:].strip())
-            bot.sendMessage(chat_id, "논문 최대 검색개수를 변경하였습니다.")            
+            try:
+                num= int(msg['text'][6:].strip())
+                bot.sendMessage(chat_id, "논문 최대 검색개수를 변경하였습니다.")  
+            except:
+                bot.sendMessage(chat_id, "명령어를 다시 확인하세요")
         else:
             bot.sendMessage(chat_id, '지원하지 않는 기능입니다')
 
-# 아침 알림
+
+# # 7. 알림 관련
+
+# In[14]:
+
+
+# 날씨 정보
 def scrape_weather():
     url = "https://search.naver.com/search.naver?sm=tab_hty.top&where=nexearch&query=광양읍+날씨&oquery=광양+날씨&tqi=UGp1owp0J14ssfhvaKNssssstQd-346753"
     soup = create_soup_pc(url)
@@ -422,21 +491,31 @@ def scrape_weather():
     pm25 = dust.find_all("dd")[1].get_text() # 초미세먼지
 
     # 출력
-    we_cast = cast + "\n" + "현재 {} (최저 {} / 최고 {})".format(curr_temp, min_temp, max_temp) \
-    + "\n" + "오전 {} / 오후 {}".format(morning_rain_rate, afternoon_rain_rate) \
-    + "\n" + "미세먼지 {}".format(pm10) + "\n" + "초미세먼지 {}".format(pm25) + "\n" + "\n"
+    we_cast = cast + "\n" + "현재 {} (최저 {} / 최고 {})".format(curr_temp, min_temp, max_temp)     + "\n" + "오전 {} / 오후 {}".format(morning_rain_rate, afternoon_rain_rate)     + "\n" + "미세먼지 {}".format(pm10) + "\n" + "초미세먼지 {}".format(pm25) + "\n" + "\n"
     return we_cast
+
 def morning_alarm():
     dasl_time = (datetime.today() - datetime(2020,2,22)).days
+    now = datetime.now()
+    year, month, day = 2020, 2, 23
+    hwan_year, hwan_month, hwan_day = 1987, 4, 14
+    day = relativedelta(now, datetime(year, month, day))
+    hwan_day = relativedelta(now, datetime(hwan_year, hwan_month, hwan_day))
     wedding_time = (datetime.today() - datetime(2019,1,4)).days
     t = ["월", "화", "수", "목", "금", "토", "일"]
     r = datetime.today().weekday()
     weather = scrape_weather()
     today = str(datetime.today().month) + "월 " + str(datetime.today().day) + "일 " + t[r] +"요일 입니다."
-    msg = today + "\n"*2 + "다슬이 생후 " + str(dasl_time) + "일 되는 날입니다. \n" + "결혼한지 " + str(wedding_time) + "일 되는 날입니다. \n \n" + weather
+    msg = today + "\n"*2 + "다슬이 생후 " + str(dasl_time) + "일 \n"     + '%s 년 %s 개월 %s 일' %(day.years, day.months, day.days) + "일 되는 날입니다. \n"     + "내가 태어난지 " + '%s 년 %s 개월 %s 일' %(hwan_day.years, hwan_day.months, hwan_day.days) + " 되는 날입니다. \n"     + "결혼한지 " + str(wedding_time) + "일 되는 날입니다. \n \n" + weather
     bot.sendMessage(mc, msg)
-ppom()
-ppomglobal()
+
+
+
+# # 8. 반복
+
+# In[ ]:
+
+
 # 반복 및 스케쥴 관리
 schedule.every(11).minutes.do(ppom)
 schedule.every(17).minutes.do(ppomglobal)
@@ -445,8 +524,9 @@ schedule.every().day.at("07:00").do(morning_alarm)
 schedule.every().friday.at("17:00").do(find_movie)
 
 bot = telepot.Bot(token)
-MessageLoop(bot, handle).run_as_thread()
+MessageLoop(bot, {'chat' : handle, 'callback_query' : query_ans}).run_as_thread()
 
 while True:
     schedule.run_pending()
     time.sleep(50)
+
